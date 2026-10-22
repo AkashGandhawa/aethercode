@@ -24,8 +24,8 @@ interface AgentResponse {
 }
 
 const MODEL_OPTIONS = [
-	{ value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-	{ value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+	{ value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+	{ value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro' },
 	{ value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Groq)' },
 	{ value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Groq)' },
 	{ value: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B (Groq)' },
@@ -43,7 +43,7 @@ const MODEL_QUOTAS: Record<string, number> = Object.fromEntries(
 )
 
 const CHAT_HISTORY_KEY = 'aether_chat_history'
-const GEMINI_MODEL = 'gemini-1.5-flash'
+const GEMINI_MODEL = 'gemini-3.8-flash'
 const GROQ_MODEL = 'openai/gpt-oss-120b'
 const SELECTED_MODEL_KEY = 'aether_selected_model'
 
@@ -64,7 +64,7 @@ function getQuotaKey(model: string) {
 }
 
 function loadQuota(model: string) {
-	const quota = MODEL_QUOTAS[model] ?? MODEL_QUOTAS['gemini-3.8-flash']
+	const quota = MODEL_QUOTAS[model] ?? MODEL_QUOTAS[GEMINI_MODEL]
 
 	try {
 		const storedQuota = localStorage.getItem(getQuotaKey(model))
@@ -518,7 +518,7 @@ function ChatInterface() {
 							{message.role === 'assistant' && !message.isError && (
 								<div className="model-tag">
 									{message.cached && <span className="cached-tag">♻️ Already answered — reused, no tokens used</span>}
-									<span>⚡ Model: {message.model || 'gemini-3.8-flash'}</span>
+									<span>⚡ Model: {message.model || GEMINI_MODEL}</span>
 									{message.tokens !== null && message.tokens !== undefined && <span>{message.tokens} tokens</span>}
 								</div>
 							)}

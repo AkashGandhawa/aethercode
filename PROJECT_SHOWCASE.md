@@ -21,7 +21,7 @@ AetherCode is a two-tier, serverless application with a deliberately thin backen
         |                        +----------------------+----------------------+----------+---------+
         |                        |                      |                      |                    |
    browser-only                Groq               Google Gemini           OpenAI              Anthropic
-   storage layer         openai/gpt-oss-120b     gemini-1.5-flash        gpt-4o         claude-3-5-sonnet
+    storage layer         openai/gpt-oss-120b  gemini-3.8-flash   gpt-4o         claude-3-5-sonnet
 ```
 
 The SPA owns all user interaction and persistence; the function is stateless and acts purely as an authenticated, provider-agnostic orchestration proxy. There is no database, no session server, and no server-side chat history.

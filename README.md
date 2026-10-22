@@ -35,8 +35,8 @@ The browser renders the Vite-powered React chat interface. Each prompt is sent t
 | Groq | `openai/gpt-oss-120b` |
 | Groq | `openai/gpt-oss-20b` |
 | Groq | `qwen/qwen3.8-27b` |
-| Google | `gemini-1.5-flash` |
-| Google | `gemini-1.5-pro` |
+| Google | `gemini-3.8-flash` |
+| Google | `gemini-3.1-pro-preview` |
 | OpenAI | `gpt-4o` |
 | OpenAI | `gpt-4o-mini` |
 | Anthropic | `claude-3-5-sonnet-20240620` |

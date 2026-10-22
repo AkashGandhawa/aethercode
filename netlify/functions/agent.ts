@@ -5,10 +5,42 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_PRO_MODEL = 'gemini-3.1-pro-preview';
 const GROQ_MODEL = 'openai/gpt-oss-120b';
 const OPENAI_MODEL = 'gpt-4o';
 const ANTHROPIC_MODEL = 'claude-3-5-sonnet';
+const MAX_HISTORY_MESSAGES = 6;
+
+function normalizeGeminiModel(model: string): string {
+  if (model.includes('gemini-3.8-pro')) {
+    return GEMINI_PRO_MODEL;
+  }
+
+  if (
+    model.includes('gemini-1.5') ||
+    model.includes('gemini-2.0') ||
+    model.includes('gemini-2.5-flash') ||
+    model.includes('gemini-2.5-pro') ||
+    model.includes('gemini-3-flash-preview') ||
+    model.includes('gemini-3-pro-preview')
+  ) {
+    return GEMINI_MODEL;
+  }
+
+  return model;
+}
+
+const customFetch = async (url: string, init?: RequestInit) => {
+  const response = await fetch(url, init);
+  if (url.includes('groq.com')) {
+    const reqRemaining = response.headers.get('x-ratelimit-remaining-requests');
+    const tokRemaining = response.headers.get('x-ratelimit-remaining-tokens');
+    const tokReset = response.headers.get('x-ratelimit-reset-tokens');
+    console.log(`[Groq Quota] Requests Left: ${reqRemaining} | Tokens Left: ${tokRemaining} | Reset In: ${tokReset}`);
+  }
+  return response;
+};
 
 function getErrorDetails(error: unknown): string {
   if (error instanceof Error) {
@@ -94,6 +126,7 @@ export const handler: Handler = async (event) => {
 
     let primary;
     let missingKeyMessage: string | undefined;
+    let effectiveModel = requestedModel;
 
     const normalizedModel = requestedModel.toLowerCase();
     if (normalizedModel.includes('claude')) {
@@ -101,13 +134,14 @@ export const handler: Handler = async (event) => {
       primary = new ChatAnthropic({ model: requestedModel || ANTHROPIC_MODEL, apiKey: anthropicApiKey, maxTokens: 8192 });
     } else if (normalizedModel.includes('gemini')) {
       missingKeyMessage = geminiApiKey ? undefined : 'Missing Gemini API Key. Please add it in settings.';
-      primary = new ChatGoogleGenerativeAI({ model: requestedModel, apiKey: geminiApiKey, maxOutputTokens: 8192 });
+      effectiveModel = normalizeGeminiModel(requestedModel || GEMINI_MODEL);
+      primary = new ChatGoogleGenerativeAI({ model: effectiveModel, apiKey: geminiApiKey, maxOutputTokens: 8192 });
     } else if (normalizedModel.startsWith('gpt-')) {
       missingKeyMessage = openAiApiKey ? undefined : 'Missing OpenAI API Key. Please add it in settings.';
       primary = new ChatOpenAI({ model: requestedModel || OPENAI_MODEL, apiKey: openAiApiKey, maxTokens: 8192 });
     } else {
       missingKeyMessage = groqApiKey ? undefined : 'Missing Groq API Key. Please add it in settings.';
-      primary = new ChatGroq({ model: requestedModel || GROQ_MODEL, apiKey: groqApiKey, maxTokens: 8192 });
+      primary = new ChatGroq({ model: requestedModel || GROQ_MODEL, apiKey: groqApiKey, maxTokens: 8192, fetch: customFetch });
     }
 
     if (missingKeyMessage) {
@@ -121,7 +155,8 @@ export const handler: Handler = async (event) => {
     const systemMessage = new SystemMessage(
       'Act as a senior software architect. Produce clean, precise, markdown-formatted code blocks with a language tag on every fence, such as ```html or ```css. Keep explanations concise and outside code blocks. Let code remain natural and do not add filename comments unless they are explicitly requested.'
     );
-    const conversationHistory = history
+    const recentHistory = Array.isArray(history) ? history.slice(-MAX_HISTORY_MESSAGES) : [];
+    const conversationHistory = recentHistory
       .filter((turn) => !turn.isError && typeof turn.content === 'string' && turn.content.trim().length > 0 && (turn.role === 'user' || turn.role === 'assistant'))
       .map((turn) => turn.role === 'assistant'
         ? new AIMessage(turn.content as string)
@@ -129,7 +164,7 @@ export const handler: Handler = async (event) => {
     const userMessage = new HumanMessage(message);
     const response = await primary.invoke([systemMessage, ...conversationHistory, userMessage]);
     const responseMetadata = (response.response_metadata || {}) as Record<string, any>;
-    const actualModel = responseMetadata.model_name || responseMetadata.model || requestedModel;
+    const actualModel = responseMetadata.model_name || responseMetadata.model || effectiveModel;
 
     return {
       statusCode: 200,
